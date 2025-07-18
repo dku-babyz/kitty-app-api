@@ -16,7 +16,7 @@ class Message(MessageBase):
     created_at: datetime.datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class RoomBase(BaseModel):
     name: str
@@ -29,7 +29,7 @@ class Room(RoomBase):
     messages: list[Message] = []
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class UserBase(BaseModel):
     email: str
@@ -43,4 +43,4 @@ class User(UserBase):
     messages: list[Message] = []
 
     class Config:
-        orm_mode = True
+        from_attributes = True
