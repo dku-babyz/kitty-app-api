@@ -1,5 +1,5 @@
 
-# Kitty API
+# Kitty App API
 
 This is a FastAPI-based chat server using Server-Sent Events (SSE) and MySQL.
 
