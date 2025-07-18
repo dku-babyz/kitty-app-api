@@ -1,9 +1,8 @@
-
-from fastapi import FastAPI, Depends, HTTPException, Request
-from sse_starlette.sse import EventSourceResponse
-from sqlalchemy.orm import Session
-import asyncio
 import json
+
+from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
 
 import crud
 import models
@@ -13,6 +12,35 @@ from database import SessionLocal, engine
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: dict[int, list[WebSocket]] = {}
+
+    async def connect(self, websocket: WebSocket, room_id: int):
+        await websocket.accept()
+        if room_id not in self.active_connections:
+            self.active_connections[room_id] = []
+        self.active_connections[room_id].append(websocket)
+
+    def disconnect(self, websocket: WebSocket, room_id: int):
+        if room_id in self.active_connections:
+            self.active_connections[room_id].remove(websocket)
+
+    async def broadcast(self, message: str, room_id: int):
+        if room_id in self.active_connections:
+            for connection in self.active_connections[room_id]:
+                await connection.send_text(message)
+
+manager = ConnectionManager()
 
 def get_db():
     db = SessionLocal()
@@ -49,27 +77,41 @@ def read_rooms(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     rooms = crud.get_rooms(db, skip=skip, limit=limit)
     return rooms
 
-@app.post("/messages/", response_model=schemas.Message)
-def create_message(message: schemas.MessageCreate, db: Session = Depends(get_db)):
-    return crud.create_message(db=db, message=message)
-
 @app.get("/messages/{room_id}", response_model=list[schemas.Message])
 def read_messages(room_id: int, db: Session = Depends(get_db)):
     messages = crud.get_messages(db, room_id=room_id)
     return messages
 
-@app.get("/stream/{room_id}")
-async def message_stream(request: Request, room_id: int, db: Session = Depends(get_db)):
-    async def event_generator():
-        last_message_id = 0
+@app.websocket("/ws/{room_id}")
+async def websocket_endpoint(websocket: WebSocket, room_id: int):
+    await manager.connect(websocket, room_id)
+    try:
         while True:
-            if await request.is_disconnected():
-                break
-            messages = crud.get_messages(db, room_id=room_id, offset=last_message_id)
-            if messages:
-                for message in messages:
-                    yield json.dumps(schemas.Message.from_orm(message).dict())
-                    last_message_id = message.id
-            await asyncio.sleep(1)
+            data = await websocket.receive_text()
+            parsed = json.loads(data)
 
-    return EventSourceResponse(event_generator(), media_type="text/event-stream")
+            if parsed.get("type") == "join_room":
+                continue
+
+            db: Session = SessionLocal()
+            try:
+                message_create = schemas.MessageCreate(
+                    room_id=room_id,
+                    content=parsed["content"],
+                    owner_id=parsed["sender_id"]
+                )
+                db_message = crud.create_message(db, message_create)
+                schema_data = schemas.Message.from_orm(db_message)
+                from fastapi.encoders import jsonable_encoder
+
+                await manager.broadcast(
+                    json.dumps({"type": "new_message", "message": jsonable_encoder(schema_data)}),
+                    room_id=room_id
+                )
+            except Exception as e:
+                print("Error:", e)
+            finally:
+                db.close()
+
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, room_id)
