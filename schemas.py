@@ -40,6 +40,8 @@ class UserCreate(UserBase):
 class User(UserBase):
     id: int
     is_active: bool
+    experience: int
+    level: int
     messages: list[Message] = []
 
     class Config:
