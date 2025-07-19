@@ -11,6 +11,8 @@ class User(Base):
     email = Column(String(255), unique=True, index=True)
     hashed_password = Column(String(255))
     is_active = Column(Integer, default=1)
+    experience = Column(Integer, default=0)
+    level = Column(Integer, default=1)
 
     messages = relationship("Message", back_populates="owner")
 
