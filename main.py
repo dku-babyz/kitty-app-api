@@ -82,6 +82,14 @@ def read_messages(room_id: int, db: Session = Depends(get_db)):
     messages = crud.get_messages(db, room_id=room_id)
     return messages
 
+def is_harmful(text: str) -> bool:
+    """
+    Placeholder for AI model integration.
+    This function will be replaced with a call to the actual AI model
+    that classifies harmful content.
+    """
+    return "나쁜말" in text
+
 @app.websocket("/ws/{room_id}")
 async def websocket_endpoint(websocket: WebSocket, room_id: int):
     await manager.connect(websocket, room_id)
@@ -95,17 +103,41 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
 
             db: Session = SessionLocal()
             try:
+                content = parsed["content"]
+                sender_id = parsed["sender_id"]
+
+                # Determine experience change based on harmful content
+                if is_harmful(content):
+                    experience_change = -5
+                else:
+                    experience_change = 5
+                
+                # Update user experience and level in DB
+                updated_user = crud.update_user_experience(db, user_id=sender_id, experience_change=experience_change)
+
+                # Create and save the message
                 message_create = schemas.MessageCreate(
                     room_id=room_id,
-                    content=parsed["content"],
-                    owner_id=parsed["sender_id"]
+                    content=content,
+                    owner_id=sender_id
                 )
                 db_message = crud.create_message(db, message_create)
-                schema_data = schemas.Message.from_orm(db_message)
-                from fastapi.encoders import jsonable_encoder
 
+                # Prepare data for broadcasting
+                from fastapi.encoders import jsonable_encoder
+                message_data = schemas.Message.from_orm(db_message)
+                
+                # The user who sent the message is the owner of the message
+                # The updated user data should be for the owner
+                user_data = schemas.User.from_orm(updated_user)
+
+                # Broadcast new message and updated user stats
                 await manager.broadcast(
-                    json.dumps({"type": "new_message", "message": jsonable_encoder(schema_data)}),
+                    json.dumps({
+                        "type": "new_message", 
+                        "message": jsonable_encoder(message_data),
+                        "user_update": jsonable_encoder(user_data)
+                    }),
                     room_id=room_id
                 )
             except Exception as e:
