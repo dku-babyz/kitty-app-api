@@ -39,3 +39,14 @@ def create_message(db: Session, message: schemas.MessageCreate):
     db.commit()
     db.refresh(db_message)
     return db_message
+
+def update_user_experience(db: Session, user_id: int, experience_change: int):
+    db_user = get_user(db, user_id)
+    if db_user:
+        db_user.experience += experience_change
+        if db_user.experience >= 100:
+            db_user.level += db_user.experience // 100
+            db_user.experience %= 100
+        db.commit()
+        db.refresh(db_user)
+    return db_user
