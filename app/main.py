@@ -80,6 +80,14 @@ def read_messages(room_id: int, db: Session = Depends(get_db)):
 
 
 
+def is_harmful(text: str) -> bool:
+    """
+    Placeholder for AI model integration.
+    This function will be replaced with a call to the actual AI model
+    that classifies harmful content.
+    """
+    return "나쁜말" in text
+
 @app.websocket("/ws/{room_id}")
 async def websocket_endpoint(websocket: WebSocket, room_id: int):
     await manager.connect(websocket, room_id)
@@ -97,21 +105,13 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
                 sender_id = parsed["sender_id"]
 
                 # Determine experience change based on harmful content
-                ai_result = ai_service.process_text_with_ai(content)
-                is_harmful_content = ai_result.get("is_harmful", False)
-
-                if is_harmful_content:
-                    new_xp = updated_user.experience_points - 10
-                    new_state = "crying"
+                if is_harmful(content):
+                    experience_change = -5
                 else:
-                    new_xp = updated_user.experience_points + 5
-                    new_state = "smiling"
-
-                if new_xp < 0:
-                    new_xp = 0
-
+                    experience_change = 5
+                
                 # Update user experience and level in DB
-                updated_user = crud.update_user_status(db, user_id=sender_id, xp=new_xp, state=new_state)
+                updated_user = crud.update_user_experience(db, user_id=sender_id, experience_change=experience_change)
 
                 # Create and save the message
                 message_create = schemas.MessageCreate(
