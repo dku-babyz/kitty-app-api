@@ -176,6 +176,33 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 def read_users_me(current_user: schemas.User = Depends(get_current_user)):
     return current_user
 
+@app.post("/ai-story", response_model=schemas.DiaryGenerationResponse)
+async def generate_ai_story(request: schemas.DiaryEntryRequest):
+    # Dummy logic to generate risk_score based on mood
+    # In a real scenario, this would involve more sophisticated AI analysis
+    risk_score = 50 # Default neutral
+    if request.mood == "happy":
+        risk_score = 10
+    elif request.mood == "sad":
+        risk_score = 80
+    elif request.mood == "angry":
+        risk_score = 95
+    # Add more mood mappings as needed
+
+    # Call the existing generate_story logic
+    try:
+        story_response = await generate_story(schemas.RiskScoreRequest(risk_score=risk_score))
+        
+        # Transform the response to the format expected by the frontend
+        return schemas.DiaryGenerationResponse(
+            image_url=story_response.final_image_path,
+            story=story_response.final_story
+        )
+    except HTTPException as e:
+        raise e # Re-raise HTTP exceptions
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate AI story: {e}")
+
 @app.get("/users/", response_model=list[schemas.User])
 def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     users = crud.get_users(db, skip=skip, limit=limit)
