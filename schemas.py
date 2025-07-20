@@ -8,11 +8,17 @@ class MessageBase(BaseModel):
 class MessageCreate(MessageBase):
     owner_id: int
     room_id: int
+    character_state: str
+    experience_points: int
+    is_harmful: bool
 
 class Message(MessageBase):
     id: int
     owner_id: int
     room_id: int
+    character_state: str
+    experience_points: int
+    is_harmful: bool
     created_at: datetime.datetime
 
     class Config:
@@ -40,6 +46,8 @@ class UserCreate(UserBase):
 class User(UserBase):
     id: int
     is_active: bool
+    experience_points: int
+    level: int
     messages: list[Message] = []
 
     class Config:

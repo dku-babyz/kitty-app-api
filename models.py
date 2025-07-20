@@ -10,6 +10,8 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, index=True)
     hashed_password = Column(String(255))
+    experience_points = Column(Integer, default=0)
+    level = Column(Integer, default=1)
     is_active = Column(Integer, default=1)
 
     messages = relationship("Message", back_populates="owner")
@@ -27,6 +29,9 @@ class Message(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     content = Column(String(255))
+    character_state = Column(String(255), default="smiling")
+    experience_points = Column(Integer, default=0)
+    is_harmful = Column(Integer, default=1)
     owner_id = Column(Integer, ForeignKey("users.id"))
     room_id = Column(Integer, ForeignKey("rooms.id"))
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
