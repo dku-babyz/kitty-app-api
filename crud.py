@@ -55,11 +55,12 @@ def create_message(db: Session, message: schemas.MessageCreate):
     db.refresh(db_message)
     return db_message
 
-def update_user_status(db: Session, user_id: int, xp: int, character_state: str):
+def update_user_status(db: Session, user_id: int, xp: int, character_state: str, harmful_chat_count: int):
     db_user = get_user(db, user_id)
     if db_user:
         db_user.experience_points = xp
         db_user.character_state = character_state
+        db_user.harmful_chat_count = harmful_chat_count
         # 레벨업 로직은 필요하다면 여기에 추가
         db.commit()
         db.refresh(db_user)
