@@ -52,6 +52,7 @@ class User(UserBase):
     experience_points: int
     level: int
     character_state: str
+    harmful_chat_count: int
     messages: list[Message] = []
 
     class Config:
