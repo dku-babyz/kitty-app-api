@@ -3,7 +3,9 @@ import json
 from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from websockets import InvalidParameterName
 
+import ai_request
 import crud
 import models
 import schemas
@@ -94,11 +96,44 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
                 continue
 
             db: Session = SessionLocal()
+
+            content = parsed["content"]
+            sender_id = parsed["sender_id"]
+
+            ai_result = ai_request.process_text_with_ai(content)
+            is_harmful = ai_result.get("is_harmful", False)
+            purified_text = ai_result.get("purified_text", content)
+            harmful_words = ai_result.get("harmful_words", [])
+            quiz_data = ai_result.get("quiz")
+
+            user = crud.get_user(db, user_id=sender_id)
+            if not user:
+                raise InvalidParameterName("User not found")
+
+            # 3. 결과에 따라 경험치 및 캐릭터 상태 업데이트
+            if is_harmful:
+                new_xp = user.experience_points - 10
+                new_state = "crying"
+            else:
+                new_xp = user.experience_points + 5
+                new_state = "smiling"
+
+            # 경험치는 0 미만으로 내려가지 않도록 방지
+            if new_xp < 0:
+                new_xp = 0
+
+            updated_user = crud.update_user_status(
+                db, user_id=user.id, xp=new_xp,
+            )
+
             try:
                 message_create = schemas.MessageCreate(
                     room_id=room_id,
-                    content=parsed["content"],
-                    owner_id=parsed["sender_id"]
+                    content=purified_text,
+                    owner_id=sender_id,
+                    character_state=new_state,
+                    experience_points=new_xp,
+                    is_harmful=is_harmful,
                 )
                 db_message = crud.create_message(db, message_create)
                 schema_data = schemas.Message.from_orm(db_message)
