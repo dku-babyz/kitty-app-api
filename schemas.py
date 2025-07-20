@@ -51,6 +51,7 @@ class User(UserBase):
     is_active: bool
     experience_points: int
     level: int
+    character_state: str
     messages: list[Message] = []
 
     class Config:
