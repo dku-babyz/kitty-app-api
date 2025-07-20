@@ -1,6 +1,7 @@
 
 from pydantic import BaseModel
 import datetime
+from typing import Optional
 
 class MessageBase(BaseModel):
     content: str
@@ -38,7 +39,9 @@ class Room(RoomBase):
         from_attributes = True
 
 class UserBase(BaseModel):
-    email: str
+    username: str
+    phone_number: str
+    email: Optional[str] = None
 
 class UserCreate(UserBase):
     password: str
