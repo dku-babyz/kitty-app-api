@@ -38,7 +38,8 @@ def process_text_with_ai(text: str) -> dict:
             "is_harmful": is_harmful,
             "purified_text": purified_text,
             "harmful_words": harmful_words,
-            "quiz": quiz_data
+            "quiz_results": ai_response.get("quiz_results", []),
+            "report_results": ai_response.get("report_results", {})
         }
 
     except requests.exceptions.RequestException as e:
@@ -47,7 +48,8 @@ def process_text_with_ai(text: str) -> dict:
             "is_harmful": False,
             "purified_text": text,
             "harmful_words": [],
-            "quiz": None
+            "quiz_results": [],
+            "report_results": {}
         }
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
@@ -55,5 +57,6 @@ def process_text_with_ai(text: str) -> dict:
             "is_harmful": False,
             "purified_text": text,
             "harmful_words": [],
-            "quiz": None
+            "quiz_results": [],
+            "report_results": {}
         }
