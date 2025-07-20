@@ -165,7 +165,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
                 new_xp = 0
 
             updated_user = crud.update_user_status(
-                db, user_id=user.id, xp=new_xp,
+                db, user_id=user.id, xp=new_xp, character_state=new_state
             )
 
             try:
@@ -173,16 +173,25 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
                     room_id=room_id,
                     content=purified_text,
                     owner_id=sender_id,
-                    character_state=new_state,
-                    experience_points=new_xp,
+                    character_state=new_state, # 메시지 자체의 캐릭터 상태
+                    experience_points=new_xp, # 메시지 자체의 경험치
                     is_harmful=is_harmful,
                 )
                 db_message = crud.create_message(db, message_create)
                 schema_data = schemas.Message.from_orm(db_message)
                 from fastapi.encoders import jsonable_encoder
 
+                # 사용자 정보 업데이트를 포함하여 브로드캐스트
                 await manager.broadcast(
-                    json.dumps({"type": "new_message", "message": jsonable_encoder(schema_data)}),
+                    json.dumps({
+                        "type": "new_message",
+                        "message": jsonable_encoder(schema_data),
+                        "user_update": {
+                            "id": updated_user.id,
+                            "experience_points": updated_user.experience_points,
+                            "character_state": updated_user.character_state
+                        }
+                    }),
                     room_id=room_id
                 )
             except Exception as e:
