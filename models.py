@@ -15,6 +15,7 @@ class User(Base):
     experience_points = Column(Integer, default=0)
     level = Column(Integer, default=1)
     is_active = Column(Boolean, default=True)
+    character_state = Column(String(255), default="smiling")
 
     messages = relationship("Message", back_populates="owner")
 
