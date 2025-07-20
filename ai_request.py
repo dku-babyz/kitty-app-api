@@ -38,6 +38,7 @@ def process_text_with_ai(text: str) -> dict:
             "is_harmful": is_harmful,
             "purified_text": purified_text,
             "harmful_words": harmful_words,
+            "raw_processed_text_from_ai_server": processed_text, # Add this line
             "quiz_results": ai_response.get("quiz_results", []),
             "report_results": ai_response.get("report_results", {})
         }
