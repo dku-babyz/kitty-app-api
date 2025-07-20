@@ -1,4 +1,3 @@
-
 from pydantic import BaseModel, Field
 import datetime
 from typing import Optional, List, Dict, Any
@@ -84,3 +83,13 @@ class ProcessChatDataResponse(BaseModel):
     message: str
     quiz_results: List[QuizResult] = Field(default_factory=list)
     report_results: Optional[ReportResult] = None
+
+# New schemas for /ai-story endpoint
+class DiaryEntryRequest(BaseModel):
+    title: str
+    content: str
+    mood: str
+
+class DiaryGenerationResponse(BaseModel):
+    image_url: str
+    story: str
