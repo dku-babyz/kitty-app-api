@@ -1,4 +1,3 @@
-
 from pydantic import BaseModel
 import datetime
 from typing import Optional
@@ -57,3 +56,10 @@ class User(UserBase):
 
     class Config:
         from_attributes = True
+
+class RiskScoreRequest(BaseModel):
+    risk_score: int
+
+class StoryGenerationResponse(BaseModel):
+    final_story: str
+    final_image_path: str
