@@ -16,6 +16,7 @@ class User(Base):
     level = Column(Integer, default=1)
     is_active = Column(Boolean, default=True)
     character_state = Column(String(255), default="smiling")
+    harmful_chat_count = Column(Integer, default=0)
 
     messages = relationship("Message", back_populates="owner")
 
