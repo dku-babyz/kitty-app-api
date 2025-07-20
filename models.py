@@ -17,6 +17,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     character_state = Column(String(255), default="smiling")
 
+
     messages = relationship("Message", back_populates="owner")
 
 class Room(Base):
