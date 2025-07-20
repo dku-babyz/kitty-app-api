@@ -1,6 +1,7 @@
-from pydantic import BaseModel
+
+from pydantic import BaseModel, Field
 import datetime
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 class MessageBase(BaseModel):
     content: str
@@ -63,3 +64,23 @@ class RiskScoreRequest(BaseModel):
 class StoryGenerationResponse(BaseModel):
     final_story: str
     final_image_path: str
+
+# New schemas for Quiz and Report AI Server
+class ProcessChatDataRequest(BaseModel):
+    user_id: int
+    original_text: str
+    processed_text: str
+
+class QuizResult(BaseModel):
+    bad_word: str
+    reason: str
+    quiz: str
+
+class ReportResult(BaseModel):
+    summary: str
+    advice: str
+
+class ProcessChatDataResponse(BaseModel):
+    message: str
+    quiz_results: List[QuizResult] = Field(default_factory=list)
+    report_results: Optional[ReportResult] = None
