@@ -18,6 +18,8 @@ from database import SessionLocal, engine
 
 AI_AGENT_API_URL = os.getenv("AI_AGENT_API_URL", "http://220.149.244.87:8000")
 KITTY_API_KEY = os.getenv("KITTY_API_KEY")
+QUIZ_REPORT_AI_API_URL = os.getenv("QUIZ_REPORT_AI_API_URL", "http://220.149.244.87:8000")
+QUIZ_REPORT_AI_API_KEY = os.getenv("QUIZ_REPORT_AI_API_KEY")
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -114,6 +116,30 @@ async def generate_story(request: schemas.RiskScoreRequest):
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"AI agent API call failed: {e}")
 
+async def call_quiz_report_ai_server(user_id: int, original_text: str, processed_text: str) -> schemas.ProcessChatDataResponse:
+    if not QUIZ_REPORT_AI_API_KEY:
+        raise HTTPException(status_code=500, detail="QUIZ_REPORT_AI_API_KEY not configured")
+
+    headers = {
+        "Content-Type": "application/json",
+        "X-API-Key": QUIZ_REPORT_AI_API_KEY
+    }
+    payload = {
+        "user_id": user_id,
+        "original_text": original_text,
+        "processed_text": processed_text
+    }
+
+    try:
+        response = requests.post(f"{QUIZ_REPORT_AI_API_URL}/process_chat_data", headers=headers, json=payload)
+        response.raise_for_status()
+        return schemas.ProcessChatDataResponse(**response.json())
+    except requests.exceptions.RequestException as e:
+        print(f"Error calling Quiz/Report AI server: {e}")
+        if response is not None:
+            print(f"Response status: {response.status_code}, body: {response.text}")
+        raise HTTPException(status_code=500, detail=f"Quiz/Report AI server call failed: {e}")
+
 @app.post("/users/", response_model=schemas.User)
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_username(db, username=user.username)
@@ -183,10 +209,28 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
 
             # 3. 결과에 따라 경험치 및 캐릭터 상태 업데이트
             new_harmful_chat_count = user.harmful_chat_count
+            quiz_results_from_ai = []
+            report_results_from_ai = {}
+
             if is_harmful:
                 new_xp = user.experience_points - 10
                 new_state = "crying"
                 new_harmful_chat_count += 1
+
+                # Check if harmful_chat_count reaches 10 or more
+                if new_harmful_chat_count >= 10:
+                    try:
+                        # Call the Quiz/Report AI server
+                        ai_response = await call_quiz_report_ai_server(
+                            user_id=sender_id,
+                            original_text=content,
+                            processed_text=ai_result.get("raw_processed_text_from_ai_server", "")
+                        )
+                        quiz_results_from_ai = ai_response.quiz_results
+                        report_results_from_ai = ai_response.report_results
+                    except HTTPException as e:
+                        print(f"Failed to get quiz/report from AI server: {e.detail}")
+
             else:
                 new_xp = user.experience_points + 5
                 new_state = "smiling"
@@ -223,8 +267,8 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
                             "character_state": updated_user.character_state,
                             "harmful_chat_count": updated_user.harmful_chat_count
                         },
-                        "quiz_results": quiz_results,
-                        "report_results": report_results
+                        "quiz_results": quiz_results_from_ai,
+                        "report_results": report_results_from_ai
                     }),
                     room_id=room_id
                 )
