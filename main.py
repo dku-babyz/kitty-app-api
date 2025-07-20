@@ -150,16 +150,19 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
             is_harmful = ai_result.get("is_harmful", False)
             purified_text = ai_result.get("purified_text", content)
             harmful_words = ai_result.get("harmful_words", [])
-            quiz_data = ai_result.get("quiz")
+            quiz_results = ai_result.get("quiz_results", [])
+            report_results = ai_result.get("report_results", {})
 
             user = crud.get_user(db, user_id=sender_id)
             if not user:
                 raise InvalidParameterName("User not found")
 
             # 3. 결과에 따라 경험치 및 캐릭터 상태 업데이트
+            new_harmful_chat_count = user.harmful_chat_count
             if is_harmful:
                 new_xp = user.experience_points - 10
                 new_state = "crying"
+                new_harmful_chat_count += 1
             else:
                 new_xp = user.experience_points + 5
                 new_state = "smiling"
@@ -169,7 +172,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
                 new_xp = 0
 
             updated_user = crud.update_user_status(
-                db, user_id=user.id, xp=new_xp, character_state=new_state
+                db, user_id=user.id, xp=new_xp, character_state=new_state, harmful_chat_count=new_harmful_chat_count
             )
 
             try:
@@ -193,8 +196,11 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
                         "user_update": {
                             "id": updated_user.id,
                             "experience_points": updated_user.experience_points,
-                            "character_state": updated_user.character_state
-                        }
+                            "character_state": updated_user.character_state,
+                            "harmful_chat_count": updated_user.harmful_chat_count
+                        },
+                        "quiz_results": quiz_results,
+                        "report_results": report_results
                     }),
                     room_id=room_id
                 )
