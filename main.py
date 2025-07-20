@@ -17,7 +17,11 @@ from database import SessionLocal, engine
 
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI()
+app = FastAPI(
+    title="Kitty App API",
+    version="0.1.0",
+    description="API for the Kitty App, a chat application with AI-powered content moderation.",
+)
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
