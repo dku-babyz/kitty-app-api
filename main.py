@@ -9,11 +9,15 @@ from sqlalchemy.orm import Session
 from websockets import InvalidParameterName
 from jose import JWTError, jwt
 
+import requests
 import ai_request
 import crud
 import models
 import schemas
 from database import SessionLocal, engine
+
+AI_AGENT_API_URL = os.getenv("AI_AGENT_API_URL", "http://220.149.244.87:8000")
+KITTY_API_KEY = os.getenv("KITTY_API_KEY")
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -89,6 +93,26 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post("/generate-story", response_model=schemas.StoryGenerationResponse)
+async def generate_story(request: schemas.RiskScoreRequest):
+    if not KITTY_API_KEY:
+        raise HTTPException(status_code=500, detail="KITTY_API_KEY not configured")
+
+    headers = {
+        "Content-Type": "application/json",
+        "x-api-key": KITTY_API_KEY
+    }
+    payload = {
+        "risk_score": request.risk_score
+    }
+
+    try:
+        response = requests.post(f"{AI_AGENT_API_URL}/generate-story", headers=headers, json=payload)
+        response.raise_for_status()  # Raise an exception for HTTP errors (4xx or 5xx)
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"AI agent API call failed: {e}")
 
 @app.post("/users/", response_model=schemas.User)
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
